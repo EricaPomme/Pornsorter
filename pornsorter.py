@@ -92,10 +92,12 @@ if args.dst:
     # Relocate files as necessary
     for path in matches:
         # Strip the src dir from the matched file path, so we can create dirs as needed in dst.
-        filesubdir = os.path.split(path)[0][len(args.src):]
+        # Determine the subdirectory relative to the source without leading slashes
+        filesubdir = os.path.relpath(os.path.split(path)[0], args.src)
         filename = os.path.split(path)[1]
-        if not os.path.isdir(os.path.join(args.dst, filesubdir)):
-            os.mkdir(os.path.join(args.dst, filesubdir))
+
+        # Create any missing intermediate directories in the destination
+        os.makedirs(os.path.join(args.dst, filesubdir), exist_ok=True)
         
         # Default operation is copy2 (data+metadata)
         if not args.copy_only:
