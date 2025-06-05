@@ -40,6 +40,7 @@ def setup() -> argparse.Namespace:
     parser.add_argument('--min_y', type=int, default=1080, help='Minimum resolution to include in results. (Default: 1080)')
 
     parser.add_argument('--aspect', type=str, nargs='+', default=['16:9'], help='Aspect ratios to match, separated by spaces. (e.g.: "--aspect 16:10 32:9") If this is not specified, only 16:9 images will be matched by default.')
+    parser.add_argument('--aspect_tol', type=float, default=0.0, help='Relative tolerance for aspect ratio matching (e.g. 0.05 = ±5%%).')
     parser.add_argument('--copy_only', action='store_true', help='Used in conjunction with --dst, will not remove files from src.')
     return parser.parse_args()
 
@@ -81,14 +82,18 @@ if args.dst:
             if any([sig.startswith(byte_pattern) for byte_pattern in magic_bytes]):
                 img = Image.open(fd)
                 x, y = img.size[0], img.size[1]
-                gcd = math.gcd(x, y)
-                aspect = (int(x / gcd), int(y / gcd))
-                if aspect in desired_aspect:
-                    if x < args.min_x or y < args.min_y:
-                        print(f"Smaller than minimum resolution: {path} ({x}x{y})")
-                    else:
-                        print(f"OK: {path} {aspect}")
-                        matches.append(path)
+                img_ratio = x / y
+                for tgt_x, tgt_y in desired_aspect:
+                    tgt_ratio = tgt_x / tgt_y
+                    if math.isclose(img_ratio, tgt_ratio, rel_tol=args.aspect_tol):
+                        if x < args.min_x or y < args.min_y:
+                            print(f"Smaller than minimum resolution: {path} ({x}x{y})")
+                        else:
+                            gcd = math.gcd(x, y)
+                            aspect = (int(x / gcd), int(y / gcd))
+                            print(f"OK: {path} {aspect}")
+                            matches.append(path)
+                        break
     # Relocate files as necessary
     for path in matches:
         # Strip the src dir from the matched file path, so we can create dirs as needed in dst.
